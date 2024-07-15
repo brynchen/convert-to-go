@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SQL to Go Struct Converter</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/4.6.2/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
+</head>
+<body>
+    <style type="text/css">
+		textarea.form-control {
+			min-height: 350px;
+		}
+
+        #textToCopy {
+            width: 50%;
+            display: block;
+            margin: left auto;
+            min-height: 100px;
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+        .toast {
+            display: none;
+            padding: 10px 20px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            background-color: #333;
+            color: #fff;
+        }
+        .toast.show {
+            display: block;
+        }
+	</style>
+    <div class="container">
+        <h1>Convert your SQL into a Go struct</h1>
+        <p class="text-muted">
+            Supported SQL types are mapped to their respective Go types as follows: INT -> int / INT UNSIGNED -> uint / VARCHAR -> string / TEXT -> string / BOOLEAN -> bool / DATE -> time.Time. 
+            If a type is not supported, it will default to interface{}. The field name in the Go struct will be the camel case version of the SQL column name, and the original column name is preserved in the JSON tag for the field.
+        </p>
+        <div class="row">
+			<div class="col">
+				<h4>SQL:</h4>
+				<textarea id="sql_box" class="form-control" placeholder="Enter SQL table definition here..."></textarea>
+			</div>
+			<div class="col">
+				<h4>Go Struct:</h4>
+				<textarea readonly id="go_box" class="form-control" placeholder="Go struct will appear here..."></textarea>
+			</div>
+        </div>
+        <hr/>
+        <button onclick="convertToGo()" class="btn btn-block btn-lg btn-primary">Convert</button>
+    </div>
+    </br>
+    <div class="container">
+        <div class="row mb-3">
+            <div class="col-sm-12">
+                <textarea id="textToCopy" class="form-control" rows="6">CREATE TABLE IF NOT EXISTS user (
+    id INT,
+    user_name VARCHAR(255),
+    age INT(10) unsigned,
+    created_at DATE
+);</textarea>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-sm-1 text-center">
+                <button class="btn btn-primary" onclick="copyTextFunction()">Copy</button>
+            </div>
+        </div>
+    </div>
+    <div class="toast-container">
+        <div id="myToast" class="toast">
+            Copy successful～
+        </div>
+    </div>
+    </br>
+
+    <script type="text/javascript">
+        // 类型映射，SQL类型到Go类型
+        const typeMap = {
+            "INT": "int32",
+            "INT UNSIGNED": "uint32",
+            "INTEGER": "int32",
+            "BIGINT": "int64",
+            "TINYINT": "bool",
+            "NUMERIC": "float64",
+            "REAL": "float64",
+            "DECIMAL": "float64",
+            "TEXT": "string",
+            "VARCHAR": "string",
+            "BLOB": "[]byte",
+            "DATE": "time.Time",
+            "TIMESTAMP": "time.Time"
+        };
+
+        // 将蛇形命名转换为驼峰命名
+        function snakeToCamelCase(str) {
+            return str.toLowerCase().replace(/(_\w)/g, function(m) {
+                return m[1].toUpperCase();
+            });
+        }
+
+        // 解析SQL并生成Go结构体
+        function convertToGo() {
+            const sql = document.getElementById('sql_box').value;
+            const goStruct = parseSQLToGoStruct(sql);
+            if (goStruct !== "") {
+                document.getElementById('go_box').value = goStruct;
+            }
+        }
+
+        // 将SQL表定义解析为Go语言结构体
+        function parseSQLToGoStruct(sql) {
+            const lines = sql.split("\n");
+            let structName = "";
+            let fields = [];
+
+            lines.forEach(line => {
+                line = line.trim();
+                // 匹配表名，考虑到更多的可能性
+                const tableMatch = line.match(/CREATE TABLE IF NOT EXISTS\s+`?(\w+)`?/i);
+                if (tableMatch) {
+                    structName = snakeToCamelCase(tableMatch[1]);
+                    structName = structName.charAt(0).toUpperCase() + structName.slice(1);
+                }
+                // 匹配列定义
+                else if (line && line !== ")" && !line.startsWith("--")) {
+                    const parts = line.match(/`?(\w+)`?\s+(\w+(\(\d+\))?(\s+unsigned)?)/i);
+                    if (parts) {
+                        const columnName = parts[1];
+                        let sqlType = parts[2].toUpperCase().replace(/\(\d+\)/, "");
+                        if (sqlType.includes("UNSIGNED")) {
+                            sqlType = sqlType.replace("UNSIGNED", "UNSIGNED").trim();
+                        } else if (line.toLowerCase().includes("unsigned")) {
+                            sqlType += " UNSIGNED";
+                        }
+                        const goType = typeMap[sqlType] || "interface{}"; // 默认使用interface{}表示未知类型
+                        const fieldName = snakeToCamelCase(columnName);
+                        fields.push(`\t${fieldName} ${goType} \`json:"${columnName}"\``);
+                    }
+                }
+            });
+
+            if (!structName || fields.length === 0) {
+                return "";
+            }
+
+            return `type ${structName} struct {\n${fields.join("\n")}\n}`;
+        }
+
+        function copyTextFunction() {
+            // 获取文本区域的元素
+            var textArea = document.getElementById("textToCopy");
+            
+            // 选中文本
+            textArea.select();
+            textArea.setSelectionRange(0, 99999); // 对于移动设备
+            
+            // 执行复制命令
+            document.execCommand("copy");
+            
+            // 可以添加一些用户反馈，比如弹窗提示复制成功
+            showToast();
+            // alert("文本已复制！");
+        }
+
+        function showToast() {
+            var toastEl = document.getElementById('myToast');
+            toastEl.classList.add('show');
+
+            // Automatically hide the toast after 3 seconds
+            setTimeout(function () {
+                toastEl.classList.remove('show');
+            }, 1500);
+        }
+    </script>
+</body>
+</html>
