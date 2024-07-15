@@ -6,9 +6,9 @@
 </head>
 <body>
     <style type="text/css">
-		textarea.form-control {
-			min-height: 350px;
-		}
+        textarea.form-control {
+            min-height: 350px;
+        }
 
         #textToCopy {
             width: 50%;
@@ -34,7 +34,7 @@
         .toast.show {
             display: block;
         }
-	</style>
+    </style>
     <div class="container">
         <h1>Convert your SQL into a Go struct</h1>
         <p class="text-muted">
@@ -42,14 +42,14 @@
             If a type is not supported, it will default to interface{}. The field name in the Go struct will be the camel case version of the SQL column name, and the original column name is preserved in the JSON tag for the field.
         </p>
         <div class="row">
-			<div class="col">
-				<h4>SQL:</h4>
-				<textarea id="sql_box" class="form-control" placeholder="Enter SQL table definition here..."></textarea>
-			</div>
-			<div class="col">
-				<h4>Go Struct:</h4>
-				<textarea readonly id="go_box" class="form-control" placeholder="Go struct will appear here..."></textarea>
-			</div>
+            <div class="col">
+                <h4>SQL:</h4>
+                <textarea id="sql_box" class="form-control" placeholder="Enter SQL table definition here..."></textarea>
+            </div>
+            <div class="col">
+                <h4>Go Struct:</h4>
+                <textarea readonly id="go_box" class="form-control" placeholder="Go struct will appear here..."></textarea>
+            </div>
         </div>
         <hr/>
         <button onclick="convertToGo()" class="btn btn-block btn-lg btn-primary">Convert</button>
